@@ -27,18 +27,35 @@ const server = http.createServer((req, res) => {
     res.writeHead(403).end('Forbidden');
     return;
   }
-  fs.readFile(filePath, (error, data) => {
+  const acceptsBrotli = /(?:^|,)\s*br\s*(?:,|$)/i.test(req.headers['accept-encoding'] || '');
+  const brotliPath = `${filePath}.br`;
+  const servePath = path.extname(filePath).toLowerCase() === '.wasm' && acceptsBrotli && fs.existsSync(brotliPath)
+    ? brotliPath
+    : filePath;
+  fs.readFile(servePath, (error, data) => {
     if (error) {
       res.writeHead(error.code === 'ENOENT' ? 404 : 500, { 'Content-Type': 'text/plain; charset=utf-8' });
       res.end(error.code === 'ENOENT' ? 'Not found' : 'Server error');
       return;
     }
-    res.writeHead(200, {
+    const ext = path.extname(filePath).toLowerCase();
+    const cacheControl = requested === '/game.swf'
+      ? 'public, max-age=3600'
+      : requested.startsWith('/ruffle/') && /(?:^|\/)[a-f0-9]{12,}\.(?:js|wasm)$/.test(requested)
+        ? 'public, max-age=31536000, immutable'
+        : 'no-cache';
+    const headers = {
       'Content-Type': MIME[path.extname(filePath).toLowerCase()] || 'application/octet-stream',
       'Content-Length': data.length,
-      'Cache-Control': 'no-cache',
+      'Cache-Control': cacheControl,
       'X-Content-Type-Options': 'nosniff',
-    });
+    };
+    if (servePath === brotliPath) {
+      headers['Content-Encoding'] = 'br';
+      headers.Vary = 'Accept-Encoding';
+      headers['Content-Type'] = MIME[ext] || 'application/octet-stream';
+    }
+    res.writeHead(200, headers);
     res.end(data);
   });
 });
