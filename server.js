@@ -29,7 +29,8 @@ const server = http.createServer((req, res) => {
   }
   const acceptsBrotli = /(?:^|,)\s*br\s*(?:,|$)/i.test(req.headers['accept-encoding'] || '');
   const brotliPath = `${filePath}.br`;
-  const servePath = path.extname(filePath).toLowerCase() === '.wasm' && acceptsBrotli && fs.existsSync(brotliPath)
+  const compressibleSwfOrWasm = ['.wasm', '.swf'].includes(path.extname(filePath).toLowerCase());
+  const servePath = compressibleSwfOrWasm && acceptsBrotli && fs.existsSync(brotliPath)
     ? brotliPath
     : filePath;
   fs.readFile(servePath, (error, data) => {

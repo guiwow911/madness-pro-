@@ -65,6 +65,8 @@ async function main() {
     const swfResponse = await fetch(`http://127.0.0.1:${port}/game.swf`);
     assert.equal(swfResponse.status, 200, 'SWF served over HTTP');
     assert.ok(Number(swfResponse.headers.get('content-length')) > 10_000_000, 'full game SWF served');
+    const swfBytes = Buffer.from(await swfResponse.arrayBuffer());
+    assert.equal(swfBytes.subarray(0, 3).toString(), 'FWS', 'Ruffle receives an uncompressed SWF signature');
     const ruffleResponse = await fetch(`http://127.0.0.1:${port}/ruffle/ruffle.js`);
     assert.equal(ruffleResponse.status, 200, 'Ruffle self-hosted JavaScript served');
 
