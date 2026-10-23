@@ -9,6 +9,7 @@
   let connecting = false;
   let rxPackets = 0;
   let rxWindowAt = Date.now();
+  let lastStateSentAt = 0;
   let player;
 
   window.madnessPoll = function () {
@@ -18,6 +19,9 @@
 
   window.madnessSendState = function (x, y, scale, frame, facing, status, subStatus, clipFrame, activeWeapon, primaryWeapon, secondaryWeapon) {
     if (!socket || socket.readyState !== WebSocket.OPEN || !started) return;
+    const now = performance.now();
+    if (now - lastStateSentAt < 16) return;
+    lastStateSentAt = now;
     socket.send(JSON.stringify({ type: 'state', state: { x, y, scale, frame, facing, status, subStatus, clipFrame, activeWeapon, primaryWeapon, secondaryWeapon } }));
   };
 
@@ -27,6 +31,14 @@
   };
 
   function pushToSwf(message) {
+    if (message.startsWith('STATE|')) {
+      const secondSeparator = message.indexOf('|', 6);
+      const playerId = secondSeparator >= 0 ? message.slice(6, secondSeparator) : '';
+      if (playerId) {
+        const staleState = queue.findIndex((item) => item.startsWith(`STATE|${playerId}|`));
+        if (staleState >= 0) queue.splice(staleState, 1);
+      }
+    }
     if (queue.length >= 600) {
       const stateAt = queue.findIndex((item) => item.startsWith('STATE|'));
       if (stateAt >= 0) queue.splice(stateAt, 1);
@@ -182,6 +194,10 @@
         $('startButton').disabled = true;
         $('startButton').textContent = '已进入竞技场';
         setStatus('PVP 单挑已开局：双方进入游戏并完成角色选择即可开战。', 'good');
+      } else if (message.type === 'pong') {
+        const rtt = Math.max(0, Math.round(performance.now() - Number(message.sentAt)));
+        $('latencyLabel').textContent = `${rtt} ms`;
+        $('latencyLabel').className = rtt < 60 ? 'latency-good' : rtt < 120 ? 'latency-warn' : 'latency-bad';
       } else if (message.type === 'state') {
         rxPackets++;
         const s = message;
@@ -276,6 +292,9 @@
     $('packetRate').textContent = `${Math.round(rxPackets * 1000 / elapsed)} pkt/s`;
     rxPackets = 0;
     rxWindowAt = now;
+    if (started && socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: 'ping', sentAt: performance.now() }));
+    }
   }, 1000);
 
   window.RufflePlayer = window.RufflePlayer || {};

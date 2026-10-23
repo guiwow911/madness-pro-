@@ -119,6 +119,12 @@ wss.on('connection', (socket) => {
     let message;
     try { message = JSON.parse(raw.toString()); } catch { return; }
 
+    if (message.type === 'ping') {
+      const sentAt = Number(message.sentAt);
+      if (Number.isFinite(sentAt)) send(socket, { type: 'pong', sentAt });
+      return;
+    }
+
     if (message.type === 'create') {
       if (peer.room) return;
       const roomName = createRoomCode();

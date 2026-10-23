@@ -15,7 +15,7 @@
 ----------
 - Ruffle 和游戏文件在 public/ 内，部署时无需 CDN。
 - npm test 会启动临时服务并验证房间创建、错误房间码、加入、1v1 PVP 同步与离房流程。
-- Render Blueprint 配置位于 render.yaml；Web Service 使用 npm ci 与 npm start。
+- Render Blueprint 配置位于 render.yaml；Web Service 使用 npm ci 与 npm start。游戏同步频率目标约 60 次/秒；界面在对局中显示 RTT 与收包速率。
 
 玩法
 ----

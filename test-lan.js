@@ -109,6 +109,9 @@ async function main() {
     assert.equal(guestStartInfo.role, 'guest');
     assert.equal(hostStartInfo.mode, 'pvp');
     assert.equal(guestStartInfo.mode, 'pvp');
+    const pong = host.wait('pong');
+    host.ws.send(JSON.stringify({ type: 'ping', sentAt: 123.5 }));
+    assert.equal((await pong).sentAt, 123.5, 'server echoes RTT probe timestamp');
 
     const pvpHit = host.wait('hit');
     guest.ws.send(JSON.stringify({ type: 'hit', weapon: 'spas12', head: 1 }));
