@@ -1,27 +1,22 @@
-# Madness Arena Web LAN / PVP
+暴力迪吧联合计划 · 网页多人竞技场
+====================================
 
-Browser version of the local 1v1 PVP test package. The Node.js server serves the web game and relays WebSocket messages between players in the same room.
+快速开始
+--------
+1. 安装 Node.js 18 或更新版本。
+2. 在项目目录运行 npm ci，然后 npm start；或双击 start.bat。
+3. 打开终端显示的网页地址（本机默认 http://localhost:8787）。
+4. 点击“创建房间”，把自动生成的房间码/邀请链接发给对手。
+5. 对手打开相同网页，输入房间码和玩家名称，点击“进入房间”。
+6. 双方选择武器；房主点击“开始多人竞技场”。游戏启动页各点击一次 LAUNCH，角色页完成选择后进入 PVP。
+7. 手机上支持竖屏大厅/游戏布局与横屏游戏布局；按钮和表单按触屏尺寸设计。
 
-## Run locally
+运行与测试
+----------
+- Ruffle 和游戏文件在 public/ 内，部署时无需 CDN。
+- npm test 会启动临时服务并验证房间创建、错误房间码、加入、1v1 PVP 同步与离房流程。
+- Render Blueprint 配置位于 render.yaml；Web Service 使用 npm ci 与 npm start。
 
-- Install Node.js 18 or newer.
-- Run `npm ci`.
-- Run `npm start` and open `http://localhost:8787`.
-- Run `npm test` for the two-player relay smoke test.
-
-## Deploy to Render
-
-Create a **Web Service** from this repository with:
-
-- Build command: `npm ci`
-- Start command: `npm start`
-
-The server listens on the platform-provided `PORT` and serves the WebSocket endpoint at `/ws`. Use the HTTPS service URL in browsers; the client chooses secure WebSocket (`wss`) automatically. Free instances may sleep when idle and interrupt active rooms.
-
-## Contents
-
-- `server.js`: HTTP static server and two-player WebSocket room relay.
-- `public/`: web client, bundled Ruffle runtime, and game SWF.
-- `test-lan.js`: local smoke test.
-
-This is an experimental 1v1 build; room/player state is in memory and resets when the server restarts.
+玩法
+----
+1v1 PVP：每个房间最多两名玩家。创建房间会生成唯一房间码；加入房间只允许使用已存在的房间码。房主可开始竞技场。服务器仅转发同一房间内的对局状态与命中事件。

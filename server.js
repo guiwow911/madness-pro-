@@ -78,33 +78,70 @@ function leave(peer) {
   }
 }
 
+function normalizeRoomName(value) {
+  return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 20);
+}
+
+function createRoomCode() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code;
+  do {
+    code = Array.from(crypto.randomBytes(6), (byte) => alphabet[byte % alphabet.length]).join('');
+  } while (rooms.has(code));
+  return code;
+}
+
+function joinRoom(socket, peer, roomName, playerName, created = false) {
+  let room = rooms.get(roomName);
+  if (created) {
+    room = { name: roomName, players: new Map(), started: false };
+    rooms.set(roomName, room);
+  }
+  if (!room) {
+    send(socket, { type: 'error', code: 'ROOM_NOT_FOUND', message: '找不到这个房间；请检查房间码，或创建新房间。' });
+    return;
+  }
+  if (room.players.size >= 2) {
+    send(socket, { type: 'error', code: 'ROOM_FULL', message: '这个房间已满（每个竞技场最多 2 人）。' });
+    return;
+  }
+  peer.name = playerName;
+  peer.room = room;
+  peer.role = room.players.size === 0 ? 'host' : 'guest';
+  room.players.set(peer.id, peer);
+  send(socket, { type: 'welcome', id: peer.id, role: peer.role, room: room.name, created });
+  broadcastRoster(room);
+  if (room.started) send(socket, { type: 'start', role: peer.role });
+}
 wss.on('connection', (socket) => {
   const peer = { id: crypto.randomBytes(5).toString('hex'), socket, room: null, name: 'Player', role: 'guest', lastStateAt: 0, lastHitAt: 0 };
   socket.on('message', (raw) => {
     let message;
     try { message = JSON.parse(raw.toString()); } catch { return; }
 
+    if (message.type === 'create') {
+      if (peer.room) return;
+      const roomName = createRoomCode();
+      const playerName = String(message.name || 'Player').trim().replace(/[|\r\n]/g, '').slice(0, 20) || 'Player';
+      joinRoom(socket, peer, roomName, playerName, true);
+      return;
+    }
+
     if (message.type === 'join') {
       if (peer.room) return;
-      const roomName = String(message.room || 'LOCAL').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 20) || 'LOCAL';
+      const roomName = normalizeRoomName(message.room);
       const playerName = String(message.name || 'Player').trim().replace(/[|\r\n]/g, '').slice(0, 20) || 'Player';
-      let room = rooms.get(roomName);
-      if (!room) {
-        room = { name: roomName, players: new Map(), started: false };
-        rooms.set(roomName, room);
-      }
-      if (room.players.size >= 2) {
-        send(socket, { type: 'error', message: '这个房间已满（本测试版每房间最多 2 人）。' });
-        socket.close(1008, 'Room full');
+      if (!roomName) {
+        send(socket, { type: 'error', code: 'ROOM_CODE_REQUIRED', message: '请输入房间码。' });
         return;
       }
-      peer.name = playerName;
-      peer.room = room;
-      peer.role = room.players.size === 0 ? 'host' : 'guest';
-      room.players.set(peer.id, peer);
-      send(socket, { type: 'welcome', id: peer.id, role: peer.role, room: room.name });
-      broadcastRoster(room);
-      if (room.started) send(socket, { type: 'start', role: peer.role });
+      joinRoom(socket, peer, roomName, playerName);
+      return;
+    }
+
+    if (message.type === 'leave' && peer.room) {
+      send(socket, { type: 'left' });
+      leave(peer);
       return;
     }
 

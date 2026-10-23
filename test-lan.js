@@ -73,11 +73,17 @@ async function main() {
       host.ws.once('open', resolve);
       host.ws.once('error', reject);
     });
+    const missingRoom = host.wait('error');
+    host.ws.send(JSON.stringify({ type: 'join', room: 'MISSING', name: 'PlayerHost' }));
+    assert.equal((await missingRoom).code, 'ROOM_NOT_FOUND', 'join must require an existing room');
+
     const hostWelcome = host.wait('welcome');
     const hostRoster1 = host.wait('roster');
-    host.ws.send(JSON.stringify({ type: 'join', room: 'TEST', name: 'PlayerHost' }));
+    host.ws.send(JSON.stringify({ type: 'create', name: 'PlayerHost' }));
     const welcome = await hostWelcome;
     assert.equal(welcome.role, 'host');
+    assert.equal(welcome.created, true, 'create action creates a fresh room');
+    assert.match(welcome.room, /^[A-HJ-NP-Z2-9]{6}$/);
     assert.equal((await hostRoster1).players.length, 1);
 
     const guest = makeClient();
@@ -88,7 +94,7 @@ async function main() {
     const guestWelcome = guest.wait('welcome');
     const guestRoster = guest.wait('roster');
     const hostRoster2 = host.wait('roster');
-    guest.ws.send(JSON.stringify({ type: 'join', room: 'TEST', name: 'PlayerGuest' }));
+    guest.ws.send(JSON.stringify({ type: 'join', room: welcome.room.toLowerCase(), name: 'PlayerGuest' }));
     const guestInfo = await guestWelcome;
     assert.equal(guestInfo.role, 'guest');
     assert.equal((await guestRoster).players.length, 2);
@@ -122,10 +128,12 @@ async function main() {
     assert.equal(state.secondaryWeapon, 'beretta');
 
     const leaveReceived = host.wait('leave');
-    guest.ws.close();
+    const leftAck = guest.wait('left');
+    guest.ws.send(JSON.stringify({ type: 'leave' }));
+    await leftAck;
     await leaveReceived;
     host.ws.close();
-    console.log('PASS: HTTP game/Ruffle assets; two-player room/roles; PVP start and hit relay; remote pose/loadout relay; leave event.');
+    console.log('PASS: HTTP game/Ruffle assets; create/join room flow and missing-room rejection; 1v1 PVP relay; explicit leave event.');
   } finally {
     child.kill();
   }
