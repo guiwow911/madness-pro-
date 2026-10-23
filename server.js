@@ -39,9 +39,7 @@ const server = http.createServer((req, res) => {
       return;
     }
     const ext = path.extname(filePath).toLowerCase();
-    const cacheControl = requested === '/game.swf'
-      ? 'public, max-age=3600'
-      : requested.startsWith('/ruffle/') && /(?:^|\/)[a-f0-9]{12,}\.(?:js|wasm)$/.test(requested)
+    const cacheControl = requested.startsWith('/ruffle/') && /(?:^|\/)[a-f0-9]{12,}\.(?:js|wasm)$/.test(requested)
         ? 'public, max-age=31536000, immutable'
         : 'no-cache';
     const headers = {

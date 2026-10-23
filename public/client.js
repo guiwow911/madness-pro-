@@ -305,7 +305,7 @@
       player.style.width = '100%';
       player.style.height = '100%';
       $('ruffleContainer').replaceChildren(player);
-      await player.ruffle().load({ url: '/game.swf', autoplay: 'on', allowScriptAccess: true, frameRate: 60, letterbox: 'on' });
+      await player.ruffle().load({ url: '/game.swf?v=455477a', autoplay: 'on', allowScriptAccess: true, frameRate: 60, letterbox: 'on' });
       $('fpsLabel').textContent = 'RUFFLE · 60 FPS';
     } catch (error) {
       console.error(error);
